@@ -9,6 +9,8 @@ import staleSource from "./examples/StaleTimer.jsx?raw";
 import effectEventSource from "./examples/EffectEventTimer.jsx?raw";
 import withDependencySource from "./examples/WithDependencyTimer.jsx?raw";
 
+import { getTeachingCode } from "./getTeachingCode.js";
+
 
 export default function App() {
   return (
@@ -23,11 +25,11 @@ export default function App() {
             </NavLink>
           </li>
           <li>
-              <NavLink to="/complete-dependencies">
-                Ordinary callback — complete dependencies
-              </NavLink>
-            </li>
-            <li>
+            <NavLink to="/complete-dependencies">
+              Ordinary callback — complete dependencies
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/effect-event">
               useEffectEvent — current preference
             </NavLink>
@@ -66,7 +68,7 @@ export default function App() {
 
               <h2>Implementation source</h2>
               <pre>
-                <code>{staleSource}</code>
+                <code>{getTeachingCode(staleSource)}</code>
               </pre>
             </>
           }
@@ -80,7 +82,7 @@ export default function App() {
 
               <h2>Implementation source</h2>
               <pre>
-                <code>{effectEventSource}</code>
+                <code>{getTeachingCode(effectEventSource)}</code>
               </pre>
             </>
           }
@@ -93,7 +95,7 @@ export default function App() {
 
               <h2>Implementation source</h2>
               <pre>
-                <code>{withDependencySource}</code>
+                <code>{getTeachingCode(withDependencySource)}</code>
               </pre>
             </>
           }

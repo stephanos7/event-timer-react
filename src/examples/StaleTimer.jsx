@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig";
+import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 
 export default function StaleTimer() {
   const [startedAt, setStartedAt] = useState(null);
@@ -10,37 +9,44 @@ export default function StaleTimer() {
 
   const isRunning = startedAt !== null;
 
+  // teaching:start
   useEffect(() => {
-    // Don't create a timer while the workout is stopped.
     if (startedAt === null) return;
 
     console.log("[stale timer] setup");
 
-    // This belongs to this interval and prevents repeated alerts
-    // during the same phase. It isn't used to render the UI.
-    let previousPhaseNumber = 0;
-
-    const intervalId = setInterval(() => {
-      // Measure elapsed time rather than assuming ticks are punctual.
-      const elapsed = Math.floor((performance.now() - startedAt) / 1000);
-
-      setElapsedSeconds(elapsed);
-
+    // Number each phase: exercise 0, rest 1, exercise 2, etc.
+    function getPhaseNumber(elapsed) {
       const completedCycles = Math.floor(elapsed / CYCLE_SECONDS);
       const secondsIntoCycle = elapsed % CYCLE_SECONDS;
       const isResting = secondsIntoCycle >= EXERCISE_SECONDS;
 
-      // Exercise 0, rest 1, exercise 2, rest 3, etc.
-      const phaseNumber = completedCycles * 2 + (isResting ? 1 : 0);
+      return completedCycles * 2 + (isResting ? 1 : 0);
+    }
 
+    // Begin tracking from the current phase so setup doesn't
+    // announce an already-running phase as a new transition.
+    const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
+
+    let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
+
+    const intervalId = setInterval(() => {
+      // Measure elapsed time instead of counting interval callbacks.
+      const elapsed = Math.floor((performance.now() - startedAt) / 1000);
+
+      setElapsedSeconds(elapsed);
+
+      const phaseNumber = getPhaseNumber(elapsed);
+
+      // Announce a transition once, rather than on every tick.
       if (phaseNumber !== previousPhaseNumber) {
         previousPhaseNumber = phaseNumber;
 
-        const phase = isResting ? "Rest" : "Exercise";
+        const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
 
         // INTENTIONAL BUG:
-        // This callback captured soundEnabled when the timer started.
-        // Later renders don't replace the registered callback.
+        // This callback reads the sound preference captured when
+        // the interval was created, even after the checkbox changes.
         console.log(`[stale timer] ${phase}; soundEnabled=${soundEnabled}`);
 
         console.log(
@@ -49,34 +55,41 @@ export default function StaleTimer() {
             : "[stale timer] sound skipped"
         );
 
-        // Display the value the callback actually used.
         setLastAlert({ phase, soundEnabled });
       }
     }, 100);
 
-    // Runs when stopped, or when navigation unmounts this component.
     return () => {
       console.log("[stale timer] cleanup");
       clearInterval(intervalId);
     };
 
-    // INTENTIONAL missing dependency for this educational example.
-    // Omitting soundEnabled keeps the timer running but its value stale.
+    // INTENTIONAL missing dependency for this teaching example.
+    // Ordinary application code should not suppress this warning.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startedAt]);
+  // teaching:end
 
   function handleStart() {
+    // Start begins a fresh workout.
     setElapsedSeconds(0);
     setLastAlert(null);
     setStartedAt(performance.now());
   }
 
   function handleStop() {
-    // Triggers cleanup. The displayed elapsed time stays frozen.
+    // Changing startedAt triggers interval cleanup.
     setStartedAt(null);
   }
 
-  // These are calculated from elapsed time, not stored separately.
+  function handleSoundChange(event) {
+    const enabled = event.target.checked;
+
+    console.log(`[stale timer] sound preference changed to ${enabled}`);
+    setSoundEnabled(enabled);
+  }
+
+  // Derive the display from elapsed time instead of duplicating state.
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
   const isExercising = secondsIntoCycle < EXERCISE_SECONDS;
   const phase = isExercising ? "Exercise" : "Rest";
@@ -88,32 +101,36 @@ export default function StaleTimer() {
   return (
     <section>
       <h2>Ordinary callback — intentionally stale</h2>
+
       <p>
-        The timer reads the sound preference captured when Start was pressed.
-        Sound is simulated in the console.
+        The next phase alert uses the sound setting from when you started.
+        Changing sound does not restart the interval.
       </p>
 
       <p>Status: {isRunning ? "Running" : "Stopped"}</p>
       <h3>{phase}</h3>
       <p>{remainingSeconds} seconds remaining</p>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={soundEnabled}
-          onChange={(event) => setSoundEnabled(event.target.checked)}
-        />
-        Sound alerts
-      </label>
-
-      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
-
       <button onClick={handleStart} disabled={isRunning}>
-        Start
+        Start workout
       </button>
       <button onClick={handleStop} disabled={!isRunning}>
         Stop
       </button>
+
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={soundEnabled}
+            onChange={handleSoundChange}
+          />
+          Sound alerts
+        </label>
+      </p>
+
+      <p>Sound is simulated in the console.</p>
+      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
 
       <h3>Last phase alert</h3>
       <p>

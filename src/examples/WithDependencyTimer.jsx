@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig";
+import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 
 export default function WithDependencyTimer() {
   const [startedAt, setStartedAt] = useState(null);
@@ -10,61 +9,65 @@ export default function WithDependencyTimer() {
 
   const isRunning = startedAt !== null;
 
-useEffect(() => {
-  if (startedAt === null) return;
+  // teaching:start
+  useEffect(() => {
+    if (startedAt === null) return;
 
-  console.log("[dependency timer] setup");
+    console.log("[dependency timer] setup");
 
-  // Determine the current workout phase from elapsed time.
-  function getPhaseNumber(elapsed) {
-    const completedCycles = Math.floor(elapsed / CYCLE_SECONDS);
-    const secondsIntoCycle = elapsed % CYCLE_SECONDS;
-    const isResting = secondsIntoCycle >= EXERCISE_SECONDS;
+    // Number each phase: exercise 0, rest 1, exercise 2, etc.
+    function getPhaseNumber(elapsed) {
+      const completedCycles = Math.floor(elapsed / CYCLE_SECONDS);
+      const secondsIntoCycle = elapsed % CYCLE_SECONDS;
+      const isResting = secondsIntoCycle >= EXERCISE_SECONDS;
 
-    return completedCycles * 2 + (isResting ? 1 : 0);
-  }
-
-  // If this effect restarts during a workout, begin tracking from
-  // the current phase rather than announcing it again as new.
-  const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
-
-  let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
-
-  const intervalId = setInterval(() => {
-    // startedAt hasn't changed when sound changes, so restarting
-    // the interval doesn't reset the workout's elapsed time.
-    const elapsed = Math.floor((performance.now() - startedAt) / 1000);
-
-    setElapsedSeconds(elapsed);
-
-    const phaseNumber = getPhaseNumber(elapsed);
-
-    if (phaseNumber !== previousPhaseNumber) {
-      previousPhaseNumber = phaseNumber;
-
-      // Even phase numbers are exercise; odd ones are rest.
-      const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
-
-      console.log(`[dependency timer] ${phase}; soundEnabled=${soundEnabled}`);
-
-      console.log(
-        soundEnabled
-          ? "[dependency timer] BEEP (simulated)"
-          : "[dependency timer] sound skipped"
-      );
-
-      setLastAlert({ phase, soundEnabled });
+      return completedCycles * 2 + (isResting ? 1 : 0);
     }
-  }, 100);
 
-  return () => {
-    console.log("[dependency timer] cleanup");
-    clearInterval(intervalId);
-  };
+    // A sound change recreates this interval. Initialize tracking
+    // from the current phase instead of resetting it to phase zero.
+    const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
 
-  // Correct dependencies for an ordinary callback that reads both.
-  // Changing sound tears down this interval and creates a new one.
-}, [startedAt, soundEnabled]);
+    let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
+
+    const intervalId = setInterval(() => {
+      // startedAt stays the same when sound changes, so elapsed
+      // workout time is preserved even though the interval restarts.
+      const elapsed = Math.floor((performance.now() - startedAt) / 1000);
+
+      setElapsedSeconds(elapsed);
+
+      const phaseNumber = getPhaseNumber(elapsed);
+
+      if (phaseNumber !== previousPhaseNumber) {
+        previousPhaseNumber = phaseNumber;
+
+        const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
+
+        // The replacement interval captures the updated preference.
+        console.log(
+          `[dependency timer] ${phase}; soundEnabled=${soundEnabled}`
+        );
+
+        console.log(
+          soundEnabled
+            ? "[dependency timer] BEEP (simulated)"
+            : "[dependency timer] sound skipped"
+        );
+
+        setLastAlert({ phase, soundEnabled });
+      }
+    }, 100);
+
+    return () => {
+      console.log("[dependency timer] cleanup");
+      clearInterval(intervalId);
+    };
+
+    // Both values are dependencies because this effect reads them.
+    // Toggling sound cleans up the old interval and creates a new one.
+  }, [startedAt, soundEnabled]);
+  // teaching:end
 
   function handleStart() {
     setElapsedSeconds(0);
@@ -73,11 +76,16 @@ useEffect(() => {
   }
 
   function handleStop() {
-    // Triggers cleanup. The displayed elapsed time stays frozen.
     setStartedAt(null);
   }
 
-  // These are calculated from elapsed time, not stored separately.
+  function handleSoundChange(event) {
+    const enabled = event.target.checked;
+
+    console.log(`[dependency timer] sound preference changed to ${enabled}`);
+    setSoundEnabled(enabled);
+  }
+
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
   const isExercising = secondsIntoCycle < EXERCISE_SECONDS;
   const phase = isExercising ? "Exercise" : "Rest";
@@ -89,32 +97,36 @@ useEffect(() => {
   return (
     <section>
       <h2>Ordinary callback — complete dependencies</h2>
+
       <p>
-        The sound preference stays current because changing it restarts the
-        interval. The workout's elapsed time is preserved. Sound is simulated in
-        the console.
+        Changing sound recreates the interval. The next phase alert uses the
+        current setting, and elapsed workout time is preserved.
       </p>
+
       <p>Status: {isRunning ? "Running" : "Stopped"}</p>
       <h3>{phase}</h3>
       <p>{remainingSeconds} seconds remaining</p>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={soundEnabled}
-          onChange={(event) => setSoundEnabled(event.target.checked)}
-        />
-        Sound alerts
-      </label>
-
-      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
-
       <button onClick={handleStart} disabled={isRunning}>
-        Start
+        Start workout
       </button>
       <button onClick={handleStop} disabled={!isRunning}>
         Stop
       </button>
+
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={soundEnabled}
+            onChange={handleSoundChange}
+          />
+          Sound alerts
+        </label>
+      </p>
+
+      <p>Sound is simulated in the console.</p>
+      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
 
       <h3>Last phase alert</h3>
       <p>

@@ -1,6 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
-
-import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig";
+import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 
 export default function EffectEventTimer() {
   const [startedAt, setStartedAt] = useState(null);
@@ -10,9 +9,10 @@ export default function EffectEventTimer() {
 
   const isRunning = startedAt !== null;
 
-  // Called by the timer when a phase changes.
-  // Reads the latest committed soundEnabled value without requiring
-  // the timer effect to restart when that preference changes.
+  // teaching:start
+
+  // Reads the latest committed preference whenever the timer
+  // reports a phase change, without restarting the timer effect.
   const onPhaseChange = useEffectEvent((phase) => {
     console.log(`[effect-event timer] ${phase}; soundEnabled=${soundEnabled}`);
 
@@ -22,8 +22,6 @@ export default function EffectEventTimer() {
         : "[effect-event timer] sound skipped"
     );
 
-    // Record what was read at this event, rather than what the
-    // checkbox might change to afterward.
     setLastAlert({ phase, soundEnabled });
   });
 
@@ -32,25 +30,33 @@ export default function EffectEventTimer() {
 
     console.log("[effect-event timer] setup");
 
-    let previousPhaseNumber = 0;
+    // Number each phase: exercise 0, rest 1, exercise 2, etc.
+    function getPhaseNumber(elapsed) {
+      const completedCycles = Math.floor(elapsed / CYCLE_SECONDS);
+      const secondsIntoCycle = elapsed % CYCLE_SECONDS;
+      const isResting = secondsIntoCycle >= EXERCISE_SECONDS;
+
+      return completedCycles * 2 + (isResting ? 1 : 0);
+    }
+
+    const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
+
+    let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
 
     const intervalId = setInterval(() => {
       const elapsed = Math.floor((performance.now() - startedAt) / 1000);
 
       setElapsedSeconds(elapsed);
 
-      const completedCycles = Math.floor(elapsed / CYCLE_SECONDS);
-      const secondsIntoCycle = elapsed % CYCLE_SECONDS;
-      const isResting = secondsIntoCycle >= EXERCISE_SECONDS;
-
-      const phaseNumber = completedCycles * 2 + (isResting ? 1 : 0);
+      const phaseNumber = getPhaseNumber(elapsed);
 
       if (phaseNumber !== previousPhaseNumber) {
         previousPhaseNumber = phaseNumber;
 
-        const phase = isResting ? "Rest" : "Exercise";
+        const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
 
-        // The timer reports the event. It doesn't read soundEnabled.
+        // The timer reports the event without reading soundEnabled.
+        // The Effect Event handles the preference-dependent behavior.
         onPhaseChange(phase);
       }
     }, 100);
@@ -61,8 +67,10 @@ export default function EffectEventTimer() {
     };
 
     // startedAt controls the timer's lifetime.
-    // Effect Events are intentionally excluded from dependencies.
+    // Effect Events are excluded from effect dependencies.
   }, [startedAt]);
+
+  // teaching:end
 
   function handleStart() {
     setElapsedSeconds(0);
@@ -72,6 +80,13 @@ export default function EffectEventTimer() {
 
   function handleStop() {
     setStartedAt(null);
+  }
+
+  function handleSoundChange(event) {
+    const enabled = event.target.checked;
+
+    console.log(`[effect-event timer] sound preference changed to ${enabled}`);
+    setSoundEnabled(enabled);
   }
 
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
@@ -85,32 +100,36 @@ export default function EffectEventTimer() {
   return (
     <section>
       <h2>useEffectEvent — current preference</h2>
+
       <p>
-        Phase alerts read the latest sound preference without restarting the
-        timer. Sound is simulated in the console.
+        The next phase alert uses the current sound setting without recreating
+        the interval.
       </p>
 
       <p>Status: {isRunning ? "Running" : "Stopped"}</p>
       <h3>{phase}</h3>
       <p>{remainingSeconds} seconds remaining</p>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={soundEnabled}
-          onChange={(event) => setSoundEnabled(event.target.checked)}
-        />
-        Sound alerts
-      </label>
-
-      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
-
       <button onClick={handleStart} disabled={isRunning}>
-        Start
+        Start workout
       </button>
       <button onClick={handleStop} disabled={!isRunning}>
         Stop
       </button>
+
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={soundEnabled}
+            onChange={handleSoundChange}
+          />
+          Sound alerts
+        </label>
+      </p>
+
+      <p>Sound is simulated in the console.</p>
+      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
 
       <h3>Last phase alert</h3>
       <p>
