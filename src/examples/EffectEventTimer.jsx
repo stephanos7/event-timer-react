@@ -106,18 +106,31 @@ export default function EffectEventTimer() {
         the interval.
       </p>
 
-      <p>Status: {isRunning ? "Running" : "Stopped"}</p>
-      <h3>{phase}</h3>
-      <p>{remainingSeconds} seconds remaining</p>
+      <p className="timer-status">
+        Status: {isRunning ? "Running" : "Stopped"}
+      </p>
 
-      <button onClick={handleStart} disabled={isRunning}>
-        Start workout
-      </button>
-      <button onClick={handleStop} disabled={!isRunning}>
-        Stop
-      </button>
+      <h3 className="timer-phase">{phase}</h3>
 
-      <p>
+      <p className="timer-countdown">
+        {remainingSeconds}
+        <span>seconds remaining</span>
+      </p>
+      <div className="timer-actions">
+        <button
+          className="primary-button"
+          onClick={handleStart}
+          disabled={isRunning}
+        >
+          Start workout
+        </button>
+
+        <button onClick={handleStop} disabled={!isRunning}>
+          Stop
+        </button>
+      </div>
+
+      <div className="sound-controls">
         <label>
           <input
             type="checkbox"
@@ -126,19 +139,29 @@ export default function EffectEventTimer() {
           />
           Sound alerts
         </label>
-      </p>
 
-      <p>Sound is simulated in the console.</p>
-      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
+        <p className="muted-text">Sound is simulated in the console.</p>
 
-      <h3>Last phase alert</h3>
-      <p>
-        {lastAlert
-          ? `${lastAlert.phase}: callback read sound as ${
-              lastAlert.soundEnabled ? "On" : "Off"
-            }.`
-          : "No phase transition yet."}
-      </p>
+        <p>
+          Current preference: <strong>{soundEnabled ? "On" : "Off"}</strong>
+        </p>
+      </div>
+
+      <div className="observation">
+        <h3>Last phase alert</h3>
+
+        {/* Announce phase results, not every countdown update. */}
+        <p role="status">
+          {lastAlert ? (
+            <>
+              {lastAlert.phase}: callback read sound as{" "}
+              <strong>{lastAlert.soundEnabled ? "On" : "Off"}</strong>.
+            </>
+          ) : (
+            "Start the timer and wait for a phase change."
+          )}
+        </p>
+      </div>
     </section>
   );
 }

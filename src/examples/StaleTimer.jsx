@@ -107,16 +107,30 @@ export default function StaleTimer() {
         Changing sound does not restart the interval.
       </p>
 
-      <p>Status: {isRunning ? "Running" : "Stopped"}</p>
-      <h3>{phase}</h3>
-      <p>{remainingSeconds} seconds remaining</p>
+      <p className="timer-status">
+        Status: {isRunning ? "Running" : "Stopped"}
+      </p>
 
-      <button onClick={handleStart} disabled={isRunning}>
-        Start workout
-      </button>
-      <button onClick={handleStop} disabled={!isRunning}>
-        Stop
-      </button>
+      <h3 className="timer-phase">{phase}</h3>
+
+      <p className="timer-countdown">
+        {remainingSeconds}
+        <span>seconds remaining</span>
+      </p>
+
+      <div className="timer-actions">
+        <button
+          className="primary-button"
+          onClick={handleStart}
+          disabled={isRunning}
+        >
+          Start workout
+        </button>
+
+        <button onClick={handleStop} disabled={!isRunning}>
+          Stop
+        </button>
+      </div>
 
       <p>
         <label>
