@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 
-const EXERCISE_SECONDS = 30;
-const REST_SECONDS = 10;
-const CYCLE_SECONDS = EXERCISE_SECONDS + REST_SECONDS;
+import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig";
 
 export default function StaleTimer() {
   const [startedAt, setStartedAt] = useState(null);

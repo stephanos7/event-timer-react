@@ -2,11 +2,13 @@ import { NavLink, Navigate, Route, Routes } from "react-router";
 
 import StaleTimer from "./examples/StaleTimer.jsx";
 import EffectEventTimer from "./examples/EffectEventTimer.jsx";
-
+import WithDependencyTimer from "./examples/WithDependencyTimer.jsx";
 // Vite's ?raw imports the actual source file as a string.
 // This keeps the displayed code consistent with the running example.
 import staleSource from "./examples/StaleTimer.jsx?raw";
 import effectEventSource from "./examples/EffectEventTimer.jsx?raw";
+import withDependencySource from "./examples/WithDependencyTimer.jsx?raw";
+
 
 export default function App() {
   return (
@@ -21,6 +23,11 @@ export default function App() {
             </NavLink>
           </li>
           <li>
+              <NavLink to="/complete-dependencies">
+                Ordinary callback — complete dependencies
+              </NavLink>
+            </li>
+            <li>
             <NavLink to="/effect-event">
               useEffectEvent — current preference
             </NavLink>
@@ -78,7 +85,19 @@ export default function App() {
             </>
           }
         />
+        <Route
+          path="/complete-dependencies"
+          element={
+            <>
+              <WithDependencyTimer />
 
+              <h2>Implementation source</h2>
+              <pre>
+                <code>{withDependencySource}</code>
+              </pre>
+            </>
+          }
+        />
         <Route path="*" element={<p>Example not found. Choose one above.</p>} />
       </Routes>
     </main>
