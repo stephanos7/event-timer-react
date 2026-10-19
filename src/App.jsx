@@ -1,59 +1,51 @@
 import { NavLink, Navigate, Route, Routes } from "react-router";
 
 import StaleTimer from "./examples/StaleTimer.jsx";
-import EffectEventTimer from "./examples/EffectEventTimer.jsx";
 import WithDependencyTimer from "./examples/WithDependencyTimer.jsx";
-// Vite's ?raw imports the actual source file as a string.
-// This keeps the displayed code consistent with the running example.
+import EffectEventTimer from "./examples/EffectEventTimer.jsx";
+import CodeViewer from "./components/CodeViewer.jsx";
+
 import staleSource from "./examples/StaleTimer.jsx?raw";
-import effectEventSource from "./examples/EffectEventTimer.jsx?raw";
 import withDependencySource from "./examples/WithDependencyTimer.jsx?raw";
+import effectEventSource from "./examples/EffectEventTimer.jsx?raw";
 
-import { getTeachingCode } from "./getTeachingCode.js";
+import "./App.css";
 
+// Presentation only: this component doesn't manage the experiment.
+function ExamplePage({ children, source, filename }) {
+  return (
+    <div className="experiment-layout">
+      <div className="experiment-panel">{children}</div>
+      <CodeViewer source={source} filename={filename} />
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <main>
-      <h1>Reading current state from a timer</h1>
+    <main className="tutorial">
+      <header className="page-header">
+        <p className="eyebrow">React effects lab</p>
+        <h1>Same timer. Different callbacks.</h1>
+        <p>Compare how a running timer reads a changing sound preference.</p>
+      </header>
 
-      <nav aria-label="Examples">
-        <ul>
-          <li>
-            <NavLink to="/ordinary-callback">
-              Ordinary callback — intentionally stale
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/complete-dependencies">
-              Ordinary callback — complete dependencies
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/effect-event">
-              useEffectEvent — current preference
-            </NavLink>
-          </li>
-        </ul>
+      <nav className="example-nav" aria-label="Examples">
+        <NavLink to="/ordinary-callback">1. Stale callback</NavLink>
+        <NavLink to="/complete-dependencies">2. Complete dependencies</NavLink>
+        <NavLink to="/effect-event">3. Effect Event</NavLink>
       </nav>
 
-      <p>
-        Switching examples stops the current timer. Returning to an example
-        starts it with fresh state.
-      </p>
+      <aside className="instructions" aria-labelledby="experiment-steps">
+        <h2 id="experiment-steps">Run the experiment</h2>
+        <ol>
+          <li>Start with sound enabled.</li>
+          <li>Disable sound before the phase changes.</li>
+          <li>Check the last alert and the console’s setup/cleanup logs.</li>
+        </ol>
+        <p>Switching examples stops the timer and resets the example.</p>
+      </aside>
 
-      <h2>Try this</h2>
-      <ol>
-        <li>Start with sound enabled.</li>
-        <li>Disable sound before the phase changes.</li>
-        <li>Compare the current preference with the last phase alert.</li>
-        <li>Inspect timer setup and cleanup in the console.</li>
-      </ol>
-
-      <hr />
-
-      {/* The URL determines which example and source code appear.
-          There is no separate selected-example state. */}
       <Routes>
         <Route
           path="/"
@@ -63,44 +55,43 @@ export default function App() {
         <Route
           path="/ordinary-callback"
           element={
-            <>
+            <ExamplePage
+              key="stale"
+              source={staleSource}
+              filename="StaleTimer.jsx"
+            >
               <StaleTimer />
+            </ExamplePage>
+          }
+        />
 
-              <h2>Implementation source</h2>
-              <pre>
-                <code>{getTeachingCode(staleSource)}</code>
-              </pre>
-            </>
+        <Route
+          path="/complete-dependencies"
+          element={
+            <ExamplePage
+              key="dependencies"
+              source={withDependencySource}
+              filename="WithDependencyTimer.jsx"
+            >
+              <WithDependencyTimer />
+            </ExamplePage>
           }
         />
 
         <Route
           path="/effect-event"
           element={
-            <>
+            <ExamplePage
+              key="effect-event"
+              source={effectEventSource}
+              filename="EffectEventTimer.jsx"
+            >
               <EffectEventTimer />
-
-              <h2>Implementation source</h2>
-              <pre>
-                <code>{getTeachingCode(effectEventSource)}</code>
-              </pre>
-            </>
+            </ExamplePage>
           }
         />
-        <Route
-          path="/complete-dependencies"
-          element={
-            <>
-              <WithDependencyTimer />
 
-              <h2>Implementation source</h2>
-              <pre>
-                <code>{getTeachingCode(withDependencySource)}</code>
-              </pre>
-            </>
-          }
-        />
-        <Route path="*" element={<p>Example not found. Choose one above.</p>} />
+        <Route path="*" element={<p>Choose an example above.</p>} />
       </Routes>
     </main>
   );
