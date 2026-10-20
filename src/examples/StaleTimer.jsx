@@ -4,8 +4,9 @@ import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 export default function StaleTimer() {
   const [startedAt, setStartedAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState(true);
   const [lastAlert, setLastAlert] = useState(null);
+  const [lastFlash, setLastFlash] = useState(null);
 
   const isRunning = startedAt !== null;
 
@@ -45,17 +46,20 @@ export default function StaleTimer() {
         const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
 
         // INTENTIONAL BUG:
-        // This callback reads the sound preference captured when
-        // the interval was created, even after the checkbox changes.
-        console.log(`[stale timer] ${phase}; soundEnabled=${soundEnabled}`);
+        // This callback retains the preference from when the
+        // interval was created, even after the checkbox changes.
+        console.log(`[stale timer] ${phase}; flashEnabled=${flashEnabled}`);
 
-        console.log(
-          soundEnabled
-            ? "[stale timer] BEEP (simulated)"
-            : "[stale timer] sound skipped"
-        );
+        if (flashEnabled) {
+          // Changing the dot's key restarts its CSS animation.
+          setLastFlash(performance.now());
+          console.log("[stale timer] flash requested");
+        } else {
+          console.log("[stale timer] flash skipped");
+        }
 
-        setLastAlert({ phase, soundEnabled });
+        // Record the preference the callback actually read.
+        setLastAlert({ phase, flashEnabled });
       }
     }, 100);
 
@@ -71,9 +75,10 @@ export default function StaleTimer() {
   // teaching:end
 
   function handleStart() {
-    // Start begins a fresh workout.
+    // Every Start begins a fresh workout and clears previous results.
     setElapsedSeconds(0);
     setLastAlert(null);
+    setLastFlash(null);
     setStartedAt(performance.now());
   }
 
@@ -82,14 +87,15 @@ export default function StaleTimer() {
     setStartedAt(null);
   }
 
-  function handleSoundChange(event) {
+  function handleFlashChange(event) {
     const enabled = event.target.checked;
 
-    console.log(`[stale timer] sound preference changed to ${enabled}`);
-    setSoundEnabled(enabled);
+    console.log(`[stale timer] flash preference changed to ${enabled}`);
+
+    setFlashEnabled(enabled);
   }
 
-  // Derive the display from elapsed time instead of duplicating state.
+  // Derive the displayed phase and countdown from elapsed time.
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
   const isExercising = secondsIntoCycle < EXERCISE_SECONDS;
   const phase = isExercising ? "Exercise" : "Rest";
@@ -103,8 +109,9 @@ export default function StaleTimer() {
       <h2>Ordinary callback — intentionally stale</h2>
 
       <p>
-        The next phase alert uses the sound setting from when you started.
-        Changing sound does not restart the interval.
+        The next phase alert uses the flash preference from when you started.
+        Changing the preference does not restart the interval, so its callback
+        keeps reading the old value.
       </p>
 
       <p className="timer-status">
@@ -116,6 +123,19 @@ export default function StaleTimer() {
       <p className="timer-countdown">
         {remainingSeconds}
         <span>seconds remaining</span>
+      </p>
+
+      {/* Keep the dot mounted regardless of the current preference.
+          The callback's captured value determines whether it flashes. */}
+      <p>
+        <span
+          key={lastFlash}
+          className={
+            lastFlash === null ? "phase-dot" : "phase-dot phase-dot--flash"
+          }
+          aria-hidden="true"
+        />{" "}
+        Phase indicator
       </p>
 
       <div className="timer-actions">
@@ -132,28 +152,43 @@ export default function StaleTimer() {
         </button>
       </div>
 
-      <p>
+      <div className="sound-controls">
         <label>
           <input
             type="checkbox"
-            checked={soundEnabled}
-            onChange={handleSoundChange}
+            checked={flashEnabled}
+            onChange={handleFlashChange}
           />
-          Sound alerts
+          Flash on phase change
         </label>
-      </p>
 
-      <p>Sound is simulated in the console.</p>
-      <p>Current sound preference: {soundEnabled ? "On" : "Off"}</p>
+        <p className="muted-text">
+          Start with flashing enabled, then disable it before the next phase.
+          The dot will still flash because the callback reads the original
+          preference.
+        </p>
 
-      <h3>Last phase alert</h3>
-      <p>
-        {lastAlert
-          ? `${lastAlert.phase}: callback read sound as ${
-              lastAlert.soundEnabled ? "On" : "Off"
-            }.`
-          : "No phase transition yet."}
-      </p>
+        <p>
+          Current flash preference:{" "}
+          <strong>{flashEnabled ? "On" : "Off"}</strong>
+        </p>
+      </div>
+
+      <div className="observation">
+        <h3>Last phase alert</h3>
+
+        {/* Announce phase results, not every countdown update. */}
+        <p role="status">
+          {lastAlert ? (
+            <>
+              {lastAlert.phase}: callback read flashing as{" "}
+              <strong>{lastAlert.flashEnabled ? "On" : "Off"}</strong>.
+            </>
+          ) : (
+            "Start the timer and wait for a phase change."
+          )}
+        </p>
+      </div>
     </section>
   );
 }

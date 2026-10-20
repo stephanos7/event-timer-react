@@ -70,6 +70,49 @@ h3 {
   font-size: 1rem;
 }
 
+.phase-dot {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.phase-dot--flash {
+  animation: phase-flash 600ms ease-out;
+}
+
+@keyframes phase-flash {
+  from {
+    background: #2455bc;
+    box-shadow: 0 0 0 8px #dbe7ff;
+  }
+
+  to {
+    background: #cbd5e1;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Show a brief color change without the expanding halo. */
+  .phase-dot--flash {
+    animation-name: phase-flash-reduced;
+    animation-timing-function: steps(1, end);
+  }
+}
+
+@keyframes phase-flash-reduced {
+  from {
+    background: #2455bc;
+  }
+
+  to {
+    background: #cbd5e1;
+  }
+}
+
 .tutorial {
   width: min(100%, 1280px);
   margin-inline: auto;

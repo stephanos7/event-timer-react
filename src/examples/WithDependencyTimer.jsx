@@ -4,8 +4,9 @@ import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 export default function WithDependencyTimer() {
   const [startedAt, setStartedAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState(true);
   const [lastAlert, setLastAlert] = useState(null);
+  const [lastFlash, setLastFlash] = useState(null);
 
   const isRunning = startedAt !== null;
 
@@ -24,15 +25,14 @@ export default function WithDependencyTimer() {
       return completedCycles * 2 + (isResting ? 1 : 0);
     }
 
-    // A sound change recreates this interval. Initialize tracking
-    // from the current phase instead of resetting it to phase zero.
+    // A preference change recreates this interval. Begin tracking
+    // from the current phase to avoid announcing it again on setup.
     const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
 
     let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
 
     const intervalId = setInterval(() => {
-      // startedAt stays the same when sound changes, so elapsed
-      // workout time is preserved even though the interval restarts.
+      // The original start time is preserved when flashing changes.
       const elapsed = Math.floor((performance.now() - startedAt) / 1000);
 
       setElapsedSeconds(elapsed);
@@ -44,18 +44,22 @@ export default function WithDependencyTimer() {
 
         const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
 
-        // The replacement interval captures the updated preference.
+        // Restarting the effect gives this callback the new preference.
         console.log(
-          `[dependency timer] ${phase}; soundEnabled=${soundEnabled}`
+          `[dependency timer] ${phase}; flashEnabled=${flashEnabled}`
         );
 
-        console.log(
-          soundEnabled
-            ? "[dependency timer] BEEP (simulated)"
-            : "[dependency timer] sound skipped"
-        );
+        if (flashEnabled) {
+          // Changing the dot's key recreates its element,
+          // restarting the CSS animation.
+          setLastFlash(performance.now());
+          console.log("[dependency timer] flash requested");
+        } else {
+          console.log("[dependency timer] flash skipped");
+        }
 
-        setLastAlert({ phase, soundEnabled });
+        // Record what the callback read at this phase transition.
+        setLastAlert({ phase, flashEnabled });
       }
     }, 100);
 
@@ -64,28 +68,32 @@ export default function WithDependencyTimer() {
       clearInterval(intervalId);
     };
 
-    // Both values are dependencies because this effect reads them.
-    // Toggling sound cleans up the old interval and creates a new one.
-  }, [startedAt, soundEnabled]);
+    // Changing either dependency cleans up and recreates the interval.
+  }, [startedAt, flashEnabled]);
   // teaching:end
 
   function handleStart() {
+    // Every Start begins a fresh workout and clears previous results.
     setElapsedSeconds(0);
     setLastAlert(null);
+    setLastFlash(null);
     setStartedAt(performance.now());
   }
 
   function handleStop() {
+    // Causes the effect to clean up the running interval.
     setStartedAt(null);
   }
 
-  function handleSoundChange(event) {
+  function handleFlashChange(event) {
     const enabled = event.target.checked;
 
-    console.log(`[dependency timer] sound preference changed to ${enabled}`);
-    setSoundEnabled(enabled);
+    console.log(`[dependency timer] flash preference changed to ${enabled}`);
+
+    setFlashEnabled(enabled);
   }
 
+  // Derive the displayed phase and countdown from elapsed time.
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
   const isExercising = secondsIntoCycle < EXERCISE_SECONDS;
   const phase = isExercising ? "Exercise" : "Rest";
@@ -99,8 +107,9 @@ export default function WithDependencyTimer() {
       <h2>Ordinary callback — complete dependencies</h2>
 
       <p>
-        Changing sound recreates the interval. The next phase alert uses the
-        current setting, and elapsed workout time is preserved.
+        Changing the flash preference recreates the interval. The next phase
+        transition uses the current setting, while elapsed workout time is
+        preserved.
       </p>
 
       <p className="timer-status">
@@ -112,6 +121,19 @@ export default function WithDependencyTimer() {
       <p className="timer-countdown">
         {remainingSeconds}
         <span>seconds remaining</span>
+      </p>
+
+      {/* Keep the dot visible regardless of the preference.
+          The callback decides whether to trigger its animation. */}
+      <p>
+        <span
+          key={lastFlash}
+          className={
+            lastFlash === null ? "phase-dot" : "phase-dot phase-dot--flash"
+          }
+          aria-hidden="true"
+        />{" "}
+        Phase indicator
       </p>
 
       <div className="timer-actions">
@@ -132,16 +154,20 @@ export default function WithDependencyTimer() {
         <label>
           <input
             type="checkbox"
-            checked={soundEnabled}
-            onChange={handleSoundChange}
+            checked={flashEnabled}
+            onChange={handleFlashChange}
           />
-          Sound alerts
+          Flash on phase change
         </label>
 
-        <p className="muted-text">Sound is simulated in the console.</p>
+        <p className="muted-text">
+          Toggle this while running. Watch the console for timer cleanup and
+          setup.
+        </p>
 
         <p>
-          Current preference: <strong>{soundEnabled ? "On" : "Off"}</strong>
+          Current flash preference:{" "}
+          <strong>{flashEnabled ? "On" : "Off"}</strong>
         </p>
       </div>
 
@@ -152,8 +178,8 @@ export default function WithDependencyTimer() {
         <p role="status">
           {lastAlert ? (
             <>
-              {lastAlert.phase}: callback read sound as{" "}
-              <strong>{lastAlert.soundEnabled ? "On" : "Off"}</strong>.
+              {lastAlert.phase}: callback read flashing as{" "}
+              <strong>{lastAlert.flashEnabled ? "On" : "Off"}</strong>.
             </>
           ) : (
             "Start the timer and wait for a phase change."

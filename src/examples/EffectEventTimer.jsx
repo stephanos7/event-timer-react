@@ -4,25 +4,29 @@ import { EXERCISE_SECONDS, CYCLE_SECONDS } from "../workoutConfig.js";
 export default function EffectEventTimer() {
   const [startedAt, setStartedAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState(true);
   const [lastAlert, setLastAlert] = useState(null);
+  const [lastFlash, setLastFlash] = useState(null);
 
   const isRunning = startedAt !== null;
 
   // teaching:start
 
-  // Reads the latest committed preference whenever the timer
-  // reports a phase change, without restarting the timer effect.
+  // Reads the latest committed preference when a phase changes.
+  // Changing that preference doesn't restart the timer effect.
   const onPhaseChange = useEffectEvent((phase) => {
-    console.log(`[effect-event timer] ${phase}; soundEnabled=${soundEnabled}`);
+    console.log(`[effect-event timer] ${phase}; flashEnabled=${flashEnabled}`);
 
-    console.log(
-      soundEnabled
-        ? "[effect-event timer] BEEP (simulated)"
-        : "[effect-event timer] sound skipped"
-    );
+    if (flashEnabled) {
+      // Changing the dot's key restarts its CSS animation.
+      setLastFlash(performance.now());
+      console.log("[effect-event timer] flash requested");
+    } else {
+      console.log("[effect-event timer] flash skipped");
+    }
 
-    setLastAlert({ phase, soundEnabled });
+    // Record the preference read at this particular transition.
+    setLastAlert({ phase, flashEnabled });
   });
 
   useEffect(() => {
@@ -39,11 +43,14 @@ export default function EffectEventTimer() {
       return completedCycles * 2 + (isResting ? 1 : 0);
     }
 
+    // Begin tracking from the current phase so setup doesn't
+    // announce an already-running phase as a new transition.
     const elapsedAtSetup = Math.floor((performance.now() - startedAt) / 1000);
 
     let previousPhaseNumber = getPhaseNumber(elapsedAtSetup);
 
     const intervalId = setInterval(() => {
+      // Measure elapsed time instead of counting interval callbacks.
       const elapsed = Math.floor((performance.now() - startedAt) / 1000);
 
       setElapsedSeconds(elapsed);
@@ -55,7 +62,7 @@ export default function EffectEventTimer() {
 
         const phase = phaseNumber % 2 === 0 ? "Exercise" : "Rest";
 
-        // The timer reports the event without reading soundEnabled.
+        // The timer reports the transition without reading flashEnabled.
         // The Effect Event handles the preference-dependent behavior.
         onPhaseChange(phase);
       }
@@ -73,22 +80,27 @@ export default function EffectEventTimer() {
   // teaching:end
 
   function handleStart() {
+    // Every Start begins a fresh workout and clears previous results.
     setElapsedSeconds(0);
     setLastAlert(null);
+    setLastFlash(null);
     setStartedAt(performance.now());
   }
 
   function handleStop() {
+    // Changing startedAt triggers interval cleanup.
     setStartedAt(null);
   }
 
-  function handleSoundChange(event) {
+  function handleFlashChange(event) {
     const enabled = event.target.checked;
 
-    console.log(`[effect-event timer] sound preference changed to ${enabled}`);
-    setSoundEnabled(enabled);
+    console.log(`[effect-event timer] flash preference changed to ${enabled}`);
+
+    setFlashEnabled(enabled);
   }
 
+  // Derive the displayed phase and countdown from elapsed time.
   const secondsIntoCycle = elapsedSeconds % CYCLE_SECONDS;
   const isExercising = secondsIntoCycle < EXERCISE_SECONDS;
   const phase = isExercising ? "Exercise" : "Rest";
@@ -102,8 +114,8 @@ export default function EffectEventTimer() {
       <h2>useEffectEvent — current preference</h2>
 
       <p>
-        The next phase alert uses the current sound setting without recreating
-        the interval.
+        The next phase alert uses the current flash preference without
+        recreating the interval.
       </p>
 
       <p className="timer-status">
@@ -116,6 +128,20 @@ export default function EffectEventTimer() {
         {remainingSeconds}
         <span>seconds remaining</span>
       </p>
+
+      {/* Keep the dot visible regardless of the current preference.
+          The Effect Event decides whether to trigger its animation. */}
+      <p>
+        <span
+          key={lastFlash}
+          className={
+            lastFlash === null ? "phase-dot" : "phase-dot phase-dot--flash"
+          }
+          aria-hidden="true"
+        />{" "}
+        Phase indicator
+      </p>
+
       <div className="timer-actions">
         <button
           className="primary-button"
@@ -134,16 +160,20 @@ export default function EffectEventTimer() {
         <label>
           <input
             type="checkbox"
-            checked={soundEnabled}
-            onChange={handleSoundChange}
+            checked={flashEnabled}
+            onChange={handleFlashChange}
           />
-          Sound alerts
+          Flash on phase change
         </label>
 
-        <p className="muted-text">Sound is simulated in the console.</p>
+        <p className="muted-text">
+          Toggle this while running. The next phase uses the updated preference
+          without timer cleanup or setup.
+        </p>
 
         <p>
-          Current preference: <strong>{soundEnabled ? "On" : "Off"}</strong>
+          Current flash preference:{" "}
+          <strong>{flashEnabled ? "On" : "Off"}</strong>
         </p>
       </div>
 
@@ -154,8 +184,8 @@ export default function EffectEventTimer() {
         <p role="status">
           {lastAlert ? (
             <>
-              {lastAlert.phase}: callback read sound as{" "}
-              <strong>{lastAlert.soundEnabled ? "On" : "Off"}</strong>.
+              {lastAlert.phase}: callback read flashing as{" "}
+              <strong>{lastAlert.flashEnabled ? "On" : "Off"}</strong>.
             </>
           ) : (
             "Start the timer and wait for a phase change."
